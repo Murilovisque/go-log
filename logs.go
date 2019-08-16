@@ -1,11 +1,13 @@
 package logs
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
 	"math/rand"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -13,6 +15,11 @@ var (
 	logr            *logger
 	shutdownChannel chan struct{}
 	shutdownMode    bool
+	bufPool         = sync.Pool{
+		New: func() interface{} {
+			return new(bytes.Buffer)
+		},
+	}
 )
 
 // Shutdown wait as logs complete
@@ -38,22 +45,44 @@ func SetupPerDay(logPath string, logMessagesQueueSize int) error {
 }
 
 type logger struct {
-	messagesChannel chan []byte
-	logFile         *os.File
-	fatalFail       error
-	logPath         string
+	messagesChannel          chan *bytes.Buffer
+	messagesChannelIncreased chan *bytes.Buffer
+	logFile                  *os.File
+	fatalFail                error
+	logPath                  string
+	mux                      sync.Mutex
 }
 
-func (l *logger) Write(p []byte) (n int, err error) {
+func (l *logger) Write(p []byte) (int, error) {
 	if l.fatalFail != nil {
 		panic(l.fatalFail)
 	}
-	newArr := make([]byte, len(p))
-	copy(newArr, p)
-	select {
-	case l.messagesChannel <- newArr:
-	default:
+	buf := bufPool.Get().(*bytes.Buffer)
+	if n, err := buf.Write(p); err != nil {
+		return n, err
 	}
+	l.mux.Lock()
+	select {
+	case l.messagesChannel <- buf:
+	default:
+		if l.messagesChannelIncreased == nil {
+			l.messagesChannelIncreased = make(chan *bytes.Buffer, cap(l.messagesChannel)*2)
+			go func() {
+				close(logr.messagesChannel)
+				for {
+					if len(logr.messagesChannel) == 0 {
+						break
+					}
+				}
+				l.mux.Lock()
+				l.messagesChannel = l.messagesChannelIncreased
+				l.messagesChannelIncreased = nil
+				l.mux.Unlock()
+			}()
+		}
+		l.messagesChannelIncreased <- buf
+	}
+	l.mux.Unlock()
 	return len(p), nil
 }
 
@@ -67,7 +96,7 @@ func setup(nextDateLogFileFunc func(now time.Time) time.Time, fileDateFormatFunc
 	}
 	os.Remove(filePathTest)
 	logr = &logger{
-		messagesChannel: make(chan []byte, logMessagesQueueSize),
+		messagesChannel: make(chan *bytes.Buffer, logMessagesQueueSize),
 		logPath:         logPath,
 	}
 	openLogFile(nextDateLogFileFunc, fileDateFormatFunc)
@@ -103,10 +132,12 @@ func startMessagesLogger() {
 		for {
 			select {
 			case b := <-logr.messagesChannel:
-				if _, err := logr.logFile.Write(b); err != nil {
+				if _, err := b.WriteTo(logr.logFile); err != nil {
 					logr.fatalFail = err
 					return
 				}
+				b.Reset()
+				bufPool.Put(b)
 				break
 			case <-shutdownChannel:
 				return
