@@ -14,13 +14,18 @@ import (
 var (
 	logr            *logger
 	shutdownChannel chan struct{}
-	shutdownMode    bool
+	shutdownMode    = true
 	bufPool         = sync.Pool{
 		New: func() interface{} {
 			return new(bytes.Buffer)
 		},
 	}
+	waitIncreasedChannel chan struct{}
 )
+
+func init() {
+	waitIncreasedChannel = make(chan struct{})
+}
 
 // Shutdown wait as logs complete
 func Shutdown() {
@@ -30,7 +35,23 @@ func Shutdown() {
 			break
 		}
 	}
-	shutdownChannel <- struct{}{}
+	close(shutdownChannel)
+}
+
+// LogMessageQueueSize returns the size of the logs message queue
+func LogMessageQueueSize() int {
+	if logr == nil {
+		return 0
+	}
+	return cap(logr.messagesChannel)
+}
+
+// NumberOfMessagesQueued returns the amount of the logs message in the queue
+func NumberOfMessagesQueued() int {
+	if logr == nil {
+		return 0
+	}
+	return len(logr.messagesChannel)
 }
 
 // SetupPerDay set the standard log to file and rotate it per day
@@ -45,42 +66,33 @@ func SetupPerDay(logPath string, logMessagesQueueSize int) error {
 }
 
 type logger struct {
-	messagesChannel          chan *bytes.Buffer
-	messagesChannelIncreased chan *bytes.Buffer
-	logFile                  *os.File
-	fatalFail                error
-	logPath                  string
-	mux                      sync.Mutex
+	messagesChannel chan *bytes.Buffer
+	logFile         *os.File
+	logPath         string
+	mux             sync.Mutex
 }
 
 func (l *logger) Write(p []byte) (int, error) {
-	if l.fatalFail != nil {
-		panic(l.fatalFail)
-	}
 	buf := bufPool.Get().(*bytes.Buffer)
 	if n, err := buf.Write(p); err != nil {
+		buf.Reset()
+		bufPool.Put(buf)
 		return n, err
 	}
 	l.mux.Lock()
 	select {
 	case l.messagesChannel <- buf:
 	default:
-		if l.messagesChannelIncreased == nil {
-			l.messagesChannelIncreased = make(chan *bytes.Buffer, cap(l.messagesChannel)*2)
-			go func() {
-				close(logr.messagesChannel)
-				for {
-					if len(logr.messagesChannel) == 0 {
-						break
-					}
-				}
-				l.mux.Lock()
-				l.messagesChannel = l.messagesChannelIncreased
-				l.messagesChannelIncreased = nil
-				l.mux.Unlock()
-			}()
+		messagesChannelIncreased := make(chan *bytes.Buffer, cap(l.messagesChannel)*2)
+		for {
+			if len(logr.messagesChannel) == 0 {
+				break
+			}
 		}
-		l.messagesChannelIncreased <- buf
+		waitIncreasedChannel <- struct{}{}
+		l.messagesChannel = messagesChannelIncreased
+		waitIncreasedChannel <- struct{}{}
+		l.messagesChannel <- buf
 	}
 	l.mux.Unlock()
 	return len(p), nil
@@ -111,7 +123,7 @@ func openLogFile(nextDateLogFileFunc func(time.Time) time.Time, fileDateFormatFu
 	}
 	now := time.Now()
 	logPathWithDate := fmt.Sprintf("%s-%s.log", logr.logPath, now.Format(fileDateFormatFunc()))
-	if _, err := os.Stat(logPathWithDate); os.IsNotExist(err) {
+	if _, err := os.Stat(logPathWithDate); os.IsNotExist(err) && logr.logFile != nil {
 		oldFile := logr.logFile
 		defer oldFile.Close()
 	}
@@ -123,7 +135,7 @@ func openLogFile(nextDateLogFileFunc func(time.Time) time.Time, fileDateFormatFu
 			openLogFile(nextDateLogFileFunc, fileDateFormatFunc)
 		})
 	} else {
-		logr.fatalFail = err
+		panic(err)
 	}
 }
 
@@ -133,12 +145,12 @@ func startMessagesLogger() {
 			select {
 			case b := <-logr.messagesChannel:
 				if _, err := b.WriteTo(logr.logFile); err != nil {
-					logr.fatalFail = err
-					return
+					panic(err)
 				}
 				b.Reset()
 				bufPool.Put(b)
-				break
+			case <-waitIncreasedChannel:
+				<-waitIncreasedChannel
 			case <-shutdownChannel:
 				return
 			}
