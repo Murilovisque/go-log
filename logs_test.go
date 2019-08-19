@@ -4,15 +4,16 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
 
-func TestSetupAndRotateLogFile(t *testing.T) {
+func TestIfSetupShutdownAndRotateLogFileWorks(t *testing.T) {
 	dir := createTempDir(t)
-	defer os.RemoveAll(dir)
+	defer cleanup(dir, t)
 	t.Log(dir)
 	logFile := dir + string(os.PathSeparator) + "testfile"
 	rotateAfterOneSecond := func(now time.Time) time.Time {
@@ -35,18 +36,18 @@ func TestSetupAndRotateLogFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(files) != len(txts) {
-		t.Fatalf("%s failed, folder should %d files, but it has %d", t.Name(), len(txts), len(files))
+		t.Fatalf("Folder should %d files, but it has %d", len(txts), len(files))
 	}
 	for i, txt := range txts {
 		if content, err := fileContent(dir, files[i]); err != nil || !strings.Contains(content, txt) {
-			t.Fatalf("%s failed, folder expected %s, but received %s. Error: %v", txt, t.Name(), content, err)
+			t.Fatalf("Folder expected %s, but received %s. Error: %v", txt, content, err)
 		}
 	}
 }
 
-func TestIncreaseLogMessageQueue(t *testing.T) {
+func TestIfTheLogMessageQueueWasIncreasedWhenThereWereManyLogsOperations(t *testing.T) {
 	dir := createTempDir(t)
-	defer os.RemoveAll(dir)
+	defer cleanup(dir, t)
 	t.Log(dir)
 	logFile := dir + string(os.PathSeparator) + "testfile"
 	err := SetupPerDay(logFile, 3)
@@ -83,6 +84,44 @@ func TestIncreaseLogMessageQueue(t *testing.T) {
 	}
 }
 
+func TestIfTheLogMessageWereLoggedInRightOrder(t *testing.T) {
+	dir := createTempDir(t)
+	defer cleanup(dir, t)
+	t.Log(dir)
+	logFile := dir + string(os.PathSeparator) + "testfile"
+	err := SetupPerDay(logFile, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	const expectedLines = 2000
+	for i := 1; i <= expectedLines; i++ {
+		log.Println(i)
+	}
+	wg.Wait()
+	Shutdown()
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("There should be one log file, but there are %d\n", len(files))
+	}
+	txt, err := fileContent(dir, files[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	linesOfTxt := strings.Split(txt, "\n")
+	if len(linesOfTxt) != expectedLines+1 {
+		t.Fatal("logs lost", LogMessageQueueSize(), len(strings.Split(txt, "\n")))
+	}
+	for i := 0; i < expectedLines; i++ {
+		if !strings.HasSuffix(linesOfTxt[i], strconv.Itoa(i+1)) {
+			t.Fatalf("Invalid log order in line %d. Expected: %d - Received: %s", i+1, i+1, linesOfTxt[i])
+		}
+	}
+}
+
 func fileContent(dir string, fileInfo os.FileInfo) (string, error) {
 	b, err := ioutil.ReadFile(dir + string(os.PathSeparator) + fileInfo.Name())
 	if err != nil {
@@ -97,4 +136,10 @@ func createTempDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return dir
+}
+
+func cleanup(dir string, t *testing.T) {
+	if !t.Failed() {
+		os.RemoveAll(dir)
+	}
 }

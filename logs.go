@@ -80,6 +80,7 @@ func (l *logger) Write(p []byte) (int, error) {
 		return n, err
 	}
 	l.mux.Lock()
+	defer l.mux.Unlock()
 	select {
 	case l.messagesChannel <- buf:
 	default:
@@ -94,7 +95,6 @@ func (l *logger) Write(p []byte) (int, error) {
 		waitIncreasedChannel <- struct{}{}
 		l.messagesChannel <- buf
 	}
-	l.mux.Unlock()
 	return len(p), nil
 }
 
