@@ -1,9 +1,11 @@
 package rotating
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
+	"regexp"
 	"sync"
 	"time"
 
@@ -28,25 +30,44 @@ func (trs TimeRotatingScheme) rotatingInterval() time.Duration {
 	}
 }
 
-func (trs TimeRotatingScheme) timeExtension() string {
+func (trs TimeRotatingScheme) timeExtensionFormat() string {
 	switch trs {
 	case PerDay:
-		return time.Now().Format("20060102")
+		return "20060102"
 	case PerHour:
-		return time.Now().Format("20060102-15")
+		return "20060102-15"
+	default:
+		panic("Not implemented")
+	}
+}
+
+func (trs TimeRotatingScheme) timeExtensionRegex() string {
+	switch trs {
+	case PerDay:
+		return "\\d{8}"
+	case PerHour:
+		return "\\d{8}-\\d{2}"
 	default:
 		panic("Not implemented")
 	}
 }
 
 type TimeRotatingLogger struct {
-	rotatingScheme TimeRotatingScheme
-	filename       string
-	file           *os.File
-	mux            sync.Mutex
+	rotatingScheme        TimeRotatingScheme
+	filename              string
+	file                  *os.File
+	mux                   sync.Mutex
+	amountOfFilesToRetain int
 }
 
-func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme) (*TimeRotatingLogger, error) {
+var (
+	ErrInvalidAmountOfFilesToRetain = errors.New("amount of files to retain is less than zero")
+)
+
+func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, amountOfFilesToRetain int) (*TimeRotatingLogger, error) {
+	if amountOfFilesToRetain < 1 {
+		return nil, ErrInvalidAmountOfFilesToRetain
+	}
 	newFilename := buildFilenameWithTimeExtension(time.Now(), filename, rotatingScheme)
 	f, err := os.OpenFile(newFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -76,7 +97,30 @@ func durationUntilNextRotating(moment time.Time, rotatingScheme TimeRotatingSche
 func buildFilenameWithTimeExtension(moment time.Time, filename string, rotatingScheme TimeRotatingScheme) string {
 	filenameExt := path.Ext(filename)
 	filenameWithoutExt := filename[:len(filename)-len(filenameExt)]
-	return fmt.Sprintf("%s-%s%s", filenameWithoutExt, moment.Format(rotatingScheme.timeExtension()), filenameExt)
+	return fmt.Sprintf("%s-%s%s", filenameWithoutExt, moment.Format(rotatingScheme.timeExtensionFormat()), filenameExt)
+}
+
+func lastFileTimeToRetain(moment time.Time, trl *TimeRotatingLogger) time.Time {
+	return moment.Add(trl.rotatingScheme.rotatingInterval() * time.Duration(trl.amountOfFilesToRetain) * -1)
+}
+
+func mustFileBeRemoved(lastFileTime time.Time, filenameToCheck string, trl *TimeRotatingLogger) bool {
+	filenameExt := path.Ext(trl.filename)
+	filenameWithoutExt := trl.filename[:len(trl.filename)-len(filenameExt)]
+	regexPattern := fmt.Sprintf("^%s-(%s)%s$", filenameWithoutExt, trl.rotatingScheme.timeExtensionRegex(), filenameExt)
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return false
+	}
+	matchGroups := regex.FindStringSubmatch(filenameToCheck)
+	if len(matchGroups) == 0 {
+		return false
+	}
+	fileTime, err := time.Parse(trl.rotatingScheme.timeExtensionFormat(), matchGroups[len(matchGroups)-1])
+	if err != nil {
+		return false
+	}
+	return fileTime.Before(lastFileTime)
 }
 
 func rotatingFile(trl *TimeRotatingLogger) {
