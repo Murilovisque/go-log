@@ -59,6 +59,7 @@ type TimeRotatingLogger struct {
 	file                  *os.File
 	mux                   sync.Mutex
 	amountOfFilesToRetain int
+	closeListener         chan int
 }
 
 var (
@@ -74,7 +75,7 @@ func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, a
 	if err != nil {
 		return nil, err
 	}
-	t := TimeRotatingLogger{rotatingScheme: rotatingScheme, filename: filename, file: f}
+	t := TimeRotatingLogger{rotatingScheme: rotatingScheme, filename: filename, file: f, closeListener: make(chan int)}
 	go rotatingFile(&t)
 	return &t, nil
 }
@@ -84,6 +85,13 @@ func (trl *TimeRotatingLogger) Write(p []byte) (int, error) {
 	n, err := trl.file.Write(p)
 	trl.mux.Unlock()
 	return n, err
+}
+
+func (trl *TimeRotatingLogger) Close() {
+	trl.closeListener <- 1
+	trl.mux.Lock()
+	trl.file.Close()
+	trl.mux.Unlock()
 }
 
 func durationUntilNextRotating(moment time.Time, rotatingScheme TimeRotatingScheme) time.Duration {
@@ -144,19 +152,23 @@ func rotatingFile(trl *TimeRotatingLogger) {
 	next := durationUntilNextRotating(time.Now(), trl.rotatingScheme)
 	tick := time.NewTicker(next)
 	for {
-		moment := <-tick.C
-		newFilename := buildFilenameWithTimeExtension(moment, trl.filename, trl.rotatingScheme)
-		f, err := os.OpenFile(newFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			logs.Errorf("It was not possible rotate to file %s - Error: %s", newFilename, err)
-		} else {
-			trl.mux.Lock()
-			trl.file.Close()
-			trl.file = f
-			trl.mux.Unlock()
+		select {
+		case moment := <-tick.C:
+			newFilename := buildFilenameWithTimeExtension(moment, trl.filename, trl.rotatingScheme)
+			f, err := os.OpenFile(newFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				logs.Errorf("It was not possible rotate to file %s - Error: %s", newFilename, err)
+			} else {
+				trl.mux.Lock()
+				trl.file.Close()
+				trl.file = f
+				trl.mux.Unlock()
+			}
+			removeOldFiles(moment, trl)
+			next = durationUntilNextRotating(time.Now(), trl.rotatingScheme)
+			tick.Reset(next)
+		case <-trl.closeListener:
+			return
 		}
-		removeOldFiles(moment, trl)
-		next = durationUntilNextRotating(time.Now(), trl.rotatingScheme)
-		tick.Reset(next)
 	}
 }
