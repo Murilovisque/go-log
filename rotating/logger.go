@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sync"
 	"time"
@@ -123,6 +124,22 @@ func mustFileBeRemoved(lastFileTime time.Time, filenameToCheck string, trl *Time
 	return fileTime.Before(lastFileTime)
 }
 
+func removeOldFiles(moment time.Time, trl *TimeRotatingLogger) {
+	filenameExt := path.Ext(trl.filename)
+	filenameWithoutExtGlob := trl.filename[:len(trl.filename)-len(filenameExt)] + "*"
+	dirEntries, err := filepath.Glob(filenameWithoutExtGlob)
+	if err != nil {
+		logs.Errorf("Glob %s failed. Is was not possible to remove old files - Error: %s", filenameWithoutExtGlob, err)
+	} else {
+		lastFileTime := lastFileTimeToRetain(moment, trl)
+		for _, dirEntry := range dirEntries {
+			if mustFileBeRemoved(lastFileTime, dirEntry, trl) {
+				os.Remove(dirEntry)
+			}
+		}
+	}
+}
+
 func rotatingFile(trl *TimeRotatingLogger) {
 	next := durationUntilNextRotating(time.Now(), trl.rotatingScheme)
 	tick := time.NewTicker(next)
@@ -138,6 +155,7 @@ func rotatingFile(trl *TimeRotatingLogger) {
 			trl.file = f
 			trl.mux.Unlock()
 		}
+		removeOldFiles(moment, trl)
 		next = durationUntilNextRotating(time.Now(), trl.rotatingScheme)
 		tick.Reset(next)
 	}
