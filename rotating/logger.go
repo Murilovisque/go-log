@@ -75,7 +75,7 @@ func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, a
 	if err != nil {
 		return nil, err
 	}
-	t := TimeRotatingLogger{rotatingScheme: rotatingScheme, filename: filename, file: f, closeListener: make(chan int)}
+	t := TimeRotatingLogger{rotatingScheme: rotatingScheme, filename: filename, file: f, closeListener: make(chan int), amountOfFilesToRetain: amountOfFilesToRetain}
 	go rotatingFile(&t)
 	return &t, nil
 }
