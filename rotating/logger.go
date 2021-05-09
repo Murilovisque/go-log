@@ -67,7 +67,7 @@ var (
 )
 
 func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, amountOfFilesToRetain int) (*TimeRotatingLogger, error) {
-	if amountOfFilesToRetain < 1 {
+	if amountOfFilesToRetain < 0 {
 		return nil, ErrInvalidAmountOfFilesToRetain
 	}
 	newFilename := buildFilenameWithTimeExtension(time.Now(), filename, rotatingScheme)
@@ -125,7 +125,7 @@ func mustFileBeRemoved(lastFileTime time.Time, filenameToCheck string, trl *Time
 	if len(matchGroups) == 0 {
 		return false
 	}
-	fileTime, err := time.Parse(trl.rotatingScheme.timeExtensionFormat(), matchGroups[len(matchGroups)-1])
+	fileTime, err := time.ParseInLocation(trl.rotatingScheme.timeExtensionFormat(), matchGroups[len(matchGroups)-1], lastFileTime.Location())
 	if err != nil {
 		return false
 	}
@@ -153,7 +153,8 @@ func rotatingFile(trl *TimeRotatingLogger) {
 	tick := time.NewTicker(next)
 	for {
 		select {
-		case moment := <-tick.C:
+		case <-tick.C:
+			moment := time.Now().Truncate(trl.rotatingScheme.rotatingInterval())
 			newFilename := buildFilenameWithTimeExtension(moment, trl.filename, trl.rotatingScheme)
 			f, err := os.OpenFile(newFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
