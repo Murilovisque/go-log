@@ -90,10 +90,10 @@ func (trl *TimeRotatingLogger) Write(p []byte) (int, error) {
 }
 
 func (trl *TimeRotatingLogger) Close() {
-	trl.closeListener <- 1
 	trl.mux.Lock()
 	if !trl.closed {
 		trl.closed = true
+		trl.closeListener <- 1
 		trl.file.(*os.File).Close()
 		trl.file = os.Stderr
 	}
