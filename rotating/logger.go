@@ -3,6 +3,7 @@ package rotating
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -56,10 +57,11 @@ func (trs TimeRotatingScheme) timeExtensionRegex() string {
 type TimeRotatingLogger struct {
 	rotatingScheme        TimeRotatingScheme
 	filename              string
-	file                  *os.File
+	file                  io.Writer
 	mux                   sync.Mutex
 	amountOfFilesToRetain int
 	closeListener         chan int
+	closed bool
 }
 
 var (
@@ -90,7 +92,11 @@ func (trl *TimeRotatingLogger) Write(p []byte) (int, error) {
 func (trl *TimeRotatingLogger) Close() {
 	trl.closeListener <- 1
 	trl.mux.Lock()
-	trl.file.Close()
+	if !trl.closed {
+		trl.closed = true
+		trl.file.(*os.File).Close()
+		trl.file = os.Stderr
+	}
 	trl.mux.Unlock()
 }
 
@@ -161,7 +167,7 @@ func rotatingFile(trl *TimeRotatingLogger) {
 				logs.Errorf("It was not possible rotate to file %s - Error: %s", newFilename, err)
 			} else {
 				trl.mux.Lock()
-				trl.file.Close()
+				trl.file.(*os.File).Close()
 				trl.file = f
 				trl.mux.Unlock()
 			}
