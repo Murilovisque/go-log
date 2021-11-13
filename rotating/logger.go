@@ -21,6 +21,10 @@ const (
 	PerHour
 )
 
+var (
+	ErrInvalidAmountOfFilesToRetain = errors.New("amount of files to retain is less than zero")
+)
+
 func (trs TimeRotatingScheme) rotatingInterval() time.Duration {
 	switch trs {
 	case PerDay:
@@ -61,12 +65,8 @@ type TimeRotatingLogger struct {
 	mux                   sync.Mutex
 	amountOfFilesToRetain int
 	closeListener         chan int
-	closed bool
+	closed                bool
 }
-
-var (
-	ErrInvalidAmountOfFilesToRetain = errors.New("amount of files to retain is less than zero")
-)
 
 func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, amountOfFilesToRetain int) (*TimeRotatingLogger, error) {
 	if amountOfFilesToRetain < 0 {
@@ -141,14 +141,17 @@ func mustFileBeRemoved(lastFileTime time.Time, filenameToCheck string, trl *Time
 func removeOldFiles(moment time.Time, trl *TimeRotatingLogger) {
 	filenameExt := path.Ext(trl.filename)
 	filenameWithoutExtGlob := trl.filename[:len(trl.filename)-len(filenameExt)] + "*"
-	dirEntries, err := filepath.Glob(filenameWithoutExtGlob)
+	fileEntries, err := filepath.Glob(filenameWithoutExtGlob)
 	if err != nil {
 		logs.Errorf("Glob %s failed. Is was not possible to remove old files - Error: %s", filenameWithoutExtGlob, err)
 	} else {
 		lastFileTime := lastFileTimeToRetain(moment, trl)
-		for _, dirEntry := range dirEntries {
-			if mustFileBeRemoved(lastFileTime, dirEntry, trl) {
-				os.Remove(dirEntry)
+		for _, filename := range fileEntries {
+			if mustFileBeRemoved(lastFileTime, filename, trl) {
+				err := os.Remove(filename)
+				if err != nil {
+					logs.Errorf("Is was not possible to remove the old file %s - Error: %s", filename, err)
+				}
 			}
 		}
 	}

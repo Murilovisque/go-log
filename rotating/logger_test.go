@@ -1,6 +1,9 @@
 package rotating
 
 import (
+	"path"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -26,12 +29,12 @@ func TestBuildFilenameWithTimeExtension(t *testing.T) {
 		exp            string
 		rotatingScheme TimeRotatingScheme
 	}{
-		{"/varl/log/teste.log", "/varl/log/teste-20121207.log", PerDay},
-		{"/varl/log/teste", "/varl/log/teste-20121207", PerDay},
-		{"/varl/log/", "/varl/log/-20121207", PerDay},
-		{"/varl/log/teste.log", "/varl/log/teste-20121207-06.log", PerHour},
-		{"/varl/log/teste", "/varl/log/teste-20121207-06", PerHour},
-		{"/varl/log/", "/varl/log/-20121207-06", PerHour},
+		{equalizePathSeparator("/varl/log/teste.log"), equalizePathSeparator("/varl/log/teste-20121207.log"), PerDay},
+		{equalizePathSeparator("/varl/log/teste"), equalizePathSeparator("/varl/log/teste-20121207"), PerDay},
+		{equalizePathSeparator("/varl/log/"), equalizePathSeparator("/varl/log/-20121207"), PerDay},
+		{equalizePathSeparator("/varl/log/teste.log"), equalizePathSeparator("/varl/log/teste-20121207-06.log"), PerHour},
+		{equalizePathSeparator("/varl/log/teste"), equalizePathSeparator("/varl/log/teste-20121207-06"), PerHour},
+		{equalizePathSeparator("/varl/log/"), equalizePathSeparator("/varl/log/-20121207-06"), PerHour},
 	}
 	for _, test := range tests {
 		f := buildFilenameWithTimeExtension(now, test.vl, test.rotatingScheme)
@@ -50,19 +53,19 @@ func TestMustFileBeRemoved(t *testing.T) {
 		trl          *TimeRotatingLogger
 		lastFileTime time.Time
 	}{
-		{"/varl/log/teste.log", false, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerDay}, lastFileTimePerDay},
-		{"/varl/log/teste", false, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerDay}, lastFileTimePerDay},
-		{"/varl/log/", false, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerDay}, lastFileTimePerDay},
-		{"/varl/log/teste.log", false, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerHour}, lastFileTimePerHour},
-		{"/varl/log/teste", false, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerHour}, lastFileTimePerHour},
-		{"/varl/log/", false, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerHour}, lastFileTimePerHour},
-		{"/varl/log/teste-20121207.log", false, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerDay}, lastFileTimePerDay},
-		{"/varl/log/teste-20121208.log", false, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerDay}, lastFileTimePerDay},
-		{"/varl/log/teste-20121207-06.log", false, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerHour}, lastFileTimePerHour},
-		{"/varl/log/teste-20121207-07.log", false, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerHour}, lastFileTimePerHour},
-		{"/varl/log/teste-20121206.log", true, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerDay}, lastFileTimePerDay},
-		{"/varl/log/teste-20121207-05.log", true, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerHour}, lastFileTimePerHour},
-		{"/varl/log/teste-20121206-07.log", true, &TimeRotatingLogger{filename: "/varl/log/teste.log", rotatingScheme: PerHour}, lastFileTimePerHour},
+		{equalizePathSeparator("/varl/log/teste.log"), false, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerDay}, lastFileTimePerDay},
+		{equalizePathSeparator("/varl/log/teste"), false, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerDay}, lastFileTimePerDay},
+		{equalizePathSeparator("/varl/log/"), false, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerDay}, lastFileTimePerDay},
+		{equalizePathSeparator("/varl/log/teste.log"), false, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerHour}, lastFileTimePerHour},
+		{equalizePathSeparator("/varl/log/teste"), false, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerHour}, lastFileTimePerHour},
+		{equalizePathSeparator("/varl/log/"), false, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerHour}, lastFileTimePerHour},
+		{equalizePathSeparator("/varl/log/teste-20121207.log"), false, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerDay}, lastFileTimePerDay},
+		{equalizePathSeparator("/varl/log/teste-20121208.log"), false, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerDay}, lastFileTimePerDay},
+		{equalizePathSeparator("/varl/log/teste-20121207-06.log"), false, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerHour}, lastFileTimePerHour},
+		{equalizePathSeparator("/varl/log/teste-20121207-07.log"), false, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerHour}, lastFileTimePerHour},
+		{equalizePathSeparator("/varl/log/teste-20121206.log"), true, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerDay}, lastFileTimePerDay},
+		{equalizePathSeparator("/varl/log/teste-20121207-05.log"), true, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerHour}, lastFileTimePerHour},
+		{equalizePathSeparator("/varl/log/teste-20121206-07.log"), true, &TimeRotatingLogger{filename: equalizePathSeparator("/varl/log/teste.log"), rotatingScheme: PerHour}, lastFileTimePerHour},
 	}
 	for _, test := range tests {
 		must := mustFileBeRemoved(test.lastFileTime, test.vl, test.trl)
@@ -94,4 +97,12 @@ func TestLastFileTimeToRetain(t *testing.T) {
 			t.Fatal(last)
 		}
 	}
+}
+
+func equalizePathSeparator(p string) string {
+    np := path.Join(strings.Split(p, "/")...)
+    if strings.HasSuffix(p, "/") && !strings.HasSuffix(np, "/") {
+        np += string(filepath.Separator)
+    }
+    return np
 }
