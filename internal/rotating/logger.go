@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Murilovisque/logs"
+	logs "github.com/Murilovisque/logs/internal"
 )
 
 type TimeRotatingScheme int
@@ -66,6 +67,7 @@ type TimeRotatingLogger struct {
 	amountOfFilesToRetain int
 	closeListener         chan int
 	closed                bool
+	logs.SimpleLogger
 }
 
 func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, amountOfFilesToRetain int) (*TimeRotatingLogger, error) {
@@ -78,8 +80,13 @@ func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, a
 		return nil, err
 	}
 	t := TimeRotatingLogger{rotatingScheme: rotatingScheme, filename: filename, file: f, closeListener: make(chan int), amountOfFilesToRetain: amountOfFilesToRetain}
-	go rotatingFile(&t)
 	return &t, nil
+}
+
+func (trl *TimeRotatingLogger) Init() {
+	trl.Init()
+	log.SetOutput(trl)
+	go rotatingFile(trl)
 }
 
 func (trl *TimeRotatingLogger) Write(p []byte) (int, error) {
@@ -89,11 +96,16 @@ func (trl *TimeRotatingLogger) Write(p []byte) (int, error) {
 	return n, err
 }
 
+func (trl *TimeRotatingLogger) SetWriter(writer io.Writer) {
+	log.SetOutput(trl)
+}
+
 func (trl *TimeRotatingLogger) Close() {
 	trl.mux.Lock()
 	if !trl.closed {
 		trl.closed = true
 		trl.closeListener <- 1
+        trl.file.(*os.File).Sync()
 		trl.file.(*os.File).Close()
 		trl.file = os.Stderr
 	}
