@@ -1,6 +1,6 @@
 package logs
 
-import logs "github.com/Murilovisque/logs/internal"
+import logs "github.com/Murilovisque/logs/v2/internal"
 
 
 func InitWithLogFile(filename string, fixedValues ...logs.FieldValue) error {
