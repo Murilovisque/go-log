@@ -11,11 +11,12 @@ import (
 
 var (
 	globalLogger logs.Logger
+	levelSelected string = logs.LogDebugMode
 )
 
 func init() {
 	log.SetFlags(log.LstdFlags)
-	err := initGlobalLogger(logs.LogDebugMode, &logs.SimpleLogger{FieldsValues: []logs.FieldValue{}})
+	err := initGlobalLogger(levelSelected, &logs.SimpleLogger{FieldsValues: []logs.FieldValue{}})
 	if err != nil {
 		panic(err)
 	}
@@ -44,9 +45,9 @@ func InitWithRotatingLogFile(level, filename string, rotatingScheme rotating.Tim
 func NewChildLogger(fixedValues ...logs.FieldValue) Logger {
 	globalFixedValues := globalLogger.FixedFieldsValues()[:]
 	globalFixedValues = append(globalFixedValues, fixedValues...)
-	l := logs.SimpleLogger{FieldsValues: globalFixedValues[:]}
+	l, _ := newLoggerLevel(levelSelected, &logs.SimpleLogger{FieldsValues: globalFixedValues[:]})
 	l.Init()
-	return &l
+	return l
 }
 
 func initGlobalLogger(level string, l logs.Logger) error {
@@ -55,6 +56,7 @@ func initGlobalLogger(level string, l logs.Logger) error {
 	if err != nil {
 		return err
 	}
+	levelSelected = level
 	globalLogger.Init()
 	return nil
 }

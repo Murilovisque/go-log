@@ -8,10 +8,10 @@ import (
 )
 
 const (
+	LogFatalMode = "FATAL"
 	LogErrorMode = "ERROR"
 	LogWarnMode = "WARN"
 	LogInfoMode  = "INFO"
-	LogFatalMode = "FATAL"
 	LogDebugMode = "DEBUG"
 )
 
