@@ -4,6 +4,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
+	"errors"
 
 	logs "github.com/Murilovisque/logs/v2/internal"
 	"github.com/Murilovisque/logs/v2/internal/rotating"
@@ -11,7 +13,8 @@ import (
 
 var (
 	globalLogger logs.Logger
-	levelSelected string = logs.LogDebugMode
+	levelSelected logs.LoggerLevelMode = logs.LogDebugMode
+	ErrInvalidLevel = errors.New("Invalid logger level mode")
 )
 
 func init() {
@@ -22,7 +25,7 @@ func init() {
 	}
 }
 
-func InitWithLogFile(level, filename string, fixedValues ...logs.FieldValue) error {
+func InitWithLogFile(level logs.LoggerLevelMode, filename string, fixedValues ...logs.FieldValue) error {
 	l, err := newLoggerWithLogFile(filename, fixedValues...)
 	if err != nil {
 		return err
@@ -30,11 +33,11 @@ func InitWithLogFile(level, filename string, fixedValues ...logs.FieldValue) err
 	return initGlobalLogger(level, l)
 }
 
-func InitWithWriter(level string, w io.Writer, fixedValues ...logs.FieldValue) error {
+func InitWithWriter(level logs.LoggerLevelMode, w io.Writer, fixedValues ...logs.FieldValue) error {
 	return initGlobalLogger(level, newLoggerWithWriter(w, fixedValues...))
 }
 
-func InitWithRotatingLogFile(level, filename string, rotatingScheme rotating.TimeRotatingScheme, amountOfFilesToRetain int, fixedValues ...logs.FieldValue) error {
+func InitWithRotatingLogFile(level logs.LoggerLevelMode, filename string, rotatingScheme rotating.TimeRotatingScheme, amountOfFilesToRetain int, fixedValues ...logs.FieldValue) error {
 	l, err := rotating.NewTimeRotatingLogger(filename, rotatingScheme, amountOfFilesToRetain, fixedValues...)
 	if err != nil {
 		return err
@@ -50,7 +53,17 @@ func NewChildLogger(fixedValues ...logs.FieldValue) Logger {
 	return l
 }
 
-func initGlobalLogger(level string, l logs.Logger) error {
+func StringToLoggerLevelMode(level string) (logs.LoggerLevelMode, error) {
+	level = strings.ToUpper(level)
+	for _, l := range logs.LogsMode {
+		if string(l) == level {
+			return l, nil
+		}
+	}
+	return "", ErrInvalidLevel
+}
+
+func initGlobalLogger(level logs.LoggerLevelMode, l logs.Logger) error {
 	var err error
 	globalLogger, err = newLoggerLevel(level, l)
 	if err != nil {

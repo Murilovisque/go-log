@@ -7,16 +7,18 @@ import (
 	"strings"
 )
 
+type LoggerLevelMode string
+
 const (
-	LogFatalMode = "FATAL"
-	LogErrorMode = "ERROR"
-	LogWarnMode = "WARN"
-	LogInfoMode  = "INFO"
-	LogDebugMode = "DEBUG"
+	LogFatalMode LoggerLevelMode = "FATAL"
+	LogErrorMode LoggerLevelMode = "ERROR"
+	LogWarnMode LoggerLevelMode = "WARN"
+	LogInfoMode LoggerLevelMode = "INFO"
+	LogDebugMode LoggerLevelMode = "DEBUG"
 )
 
 var (
-	LogsMode = []string{LogFatalMode, LogErrorMode, LogWarnMode, LogInfoMode, LogDebugMode}
+	LogsMode = []LoggerLevelMode{LogFatalMode, LogErrorMode, LogWarnMode, LogInfoMode, LogDebugMode}
 )
 
 type Logger interface {
@@ -85,11 +87,11 @@ func (l *SimpleLogger) FixedFieldsValues() []FieldValue {
 	return l.FieldsValues
 }
 
-func (l *SimpleLogger) buildMessage(level string, message interface{}) string {
+func (l *SimpleLogger) buildMessage(level LoggerLevelMode, message interface{}) string {
 	return fmt.Sprintf("%s%s%v", level, l.fixedLogMessage, message)
 }
 
-func (l *SimpleLogger) buildFormatedMessage(level, message string, v ...interface{}) string {
+func (l *SimpleLogger) buildFormatedMessage(level LoggerLevelMode, message string, v ...interface{}) string {
 	return fmt.Sprintf("%s%s%s", level, l.fixedLogMessage, fmt.Sprintf(message, v...))
 }
 

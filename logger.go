@@ -1,15 +1,9 @@
 package logs
 
 import (
-	"errors"
-	"strings"
 	"io"
 
 	logs "github.com/Murilovisque/logs/v2/internal"
-)
-
-var (
-	ErrInvalidLevel = errors.New("Invalid logger level mode")
 )
 
 type Logger interface {
@@ -37,31 +31,20 @@ type loggerLevel struct {
 	realLogger logs.Logger
 }
 
-func (l *loggerLevel) setLevel(level string) {
-	l.logErrorEnabled = anyLevelMatch(level, []string{ logs.LogErrorMode, logs.LogWarnMode, logs.LogInfoMode, logs.LogDebugMode })
-	l.logWarnEnabled = anyLevelMatch(level, []string{ logs.LogWarnMode, logs.LogInfoMode, logs.LogDebugMode })
-	l.logInfoEnabled = anyLevelMatch(level, []string{ logs.LogInfoMode, logs.LogDebugMode })
-	l.logDebugEnabled = anyLevelMatch(level, []string{ logs.LogDebugMode })
+func (l *loggerLevel) setLevel(level logs.LoggerLevelMode) {
+	l.logErrorEnabled = anyLevelMatch(level, []logs.LoggerLevelMode{ logs.LogErrorMode, logs.LogWarnMode, logs.LogInfoMode, logs.LogDebugMode })
+	l.logWarnEnabled = anyLevelMatch(level, []logs.LoggerLevelMode{ logs.LogWarnMode, logs.LogInfoMode, logs.LogDebugMode })
+	l.logInfoEnabled = anyLevelMatch(level, []logs.LoggerLevelMode{ logs.LogInfoMode, logs.LogDebugMode })
+	l.logDebugEnabled = anyLevelMatch(level, []logs.LoggerLevelMode{ logs.LogDebugMode })
 }
 
-func newLoggerLevel(level string, loggerToWrap logs.Logger) (logs.Logger, error) {
-	level = strings.ToUpper(level)
-	logModeMatch := false
-	for _, l := range logs.LogsMode {
-		if l == level {
-			logModeMatch = true
-			break
-		}
-	}
-	if !logModeMatch {
-		return nil, ErrInvalidLevel
-	}
+func newLoggerLevel(level logs.LoggerLevelMode, loggerToWrap logs.Logger) (logs.Logger, error) {
 	ll := loggerLevel{realLogger: loggerToWrap}
 	ll.setLevel(level)
 	return &ll, nil
 }
 
-func anyLevelMatch(level string, allowedLevels []string) bool {
+func anyLevelMatch(level logs.LoggerLevelMode, allowedLevels []logs.LoggerLevelMode) bool {
 	for _, l := range allowedLevels {
 		if l == level {
 			return true
