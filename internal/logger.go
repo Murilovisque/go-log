@@ -5,19 +5,18 @@ import (
 	"io"
 	"log"
 	"strings"
-
 )
 
 const (
-	logErrorMode = "ERROR"
-	logWarnMode = "WARN"
-	logInfoMode  = "INFO"
-	logFatalMode = "FATAL"
-	logDebugMode = "DEBUG"
+	LogErrorMode = "ERROR"
+	LogWarnMode = "WARN"
+	LogInfoMode  = "INFO"
+	LogFatalMode = "FATAL"
+	LogDebugMode = "DEBUG"
 )
 
 var (
-	logsMode = [5]string{logErrorMode, logWarnMode, logInfoMode, logFatalMode, logDebugMode}
+	LogsMode = []string{LogFatalMode, LogErrorMode, LogWarnMode, LogInfoMode, LogDebugMode}
 )
 
 type Logger interface {
@@ -38,52 +37,52 @@ type Logger interface {
 
 
 type SimpleLogger struct {
-	fieldsValues []FieldValue
+	FieldsValues []FieldValue
 	fixedLogMessage string
 }
 
 func (l *SimpleLogger) Fatalf(message string, v ...interface{}) {
-	log.Fatal(l.buildFormatedMessage(logFatalMode, message, v...))
+	log.Fatal(l.buildFormatedMessage(LogFatalMode, message, v...))
 }
 
 func (l *SimpleLogger) Infof(message string, v ...interface{}) {
-	log.Println(l.buildFormatedMessage(logInfoMode, message, v...))
+	log.Println(l.buildFormatedMessage(LogInfoMode, message, v...))
 }
 
 func (l *SimpleLogger) Errorf(message string, v ...interface{}) {
-	log.Println(l.buildFormatedMessage(logErrorMode, message, v...))
+	log.Println(l.buildFormatedMessage(LogErrorMode, message, v...))
 }
 
 func (l *SimpleLogger) Debugf(message string, v ...interface{}) {
-	log.Println(l.buildFormatedMessage(logDebugMode, message, v...))
+	log.Println(l.buildFormatedMessage(LogDebugMode, message, v...))
 }
 
 func (l *SimpleLogger) Warnf(message string, v ...interface{}) {
-	log.Println(l.buildFormatedMessage(logWarnMode, message, v...))
+	log.Println(l.buildFormatedMessage(LogWarnMode, message, v...))
 }
 
 func (l *SimpleLogger) Fatal(message interface{}) {
-	log.Fatal(l.buildMessage(logFatalMode, message))
+	log.Fatal(l.buildMessage(LogFatalMode, message))
 }
 
 func (l *SimpleLogger) Info(message interface{}) {
-	log.Println(l.buildMessage(logInfoMode, message))
+	log.Println(l.buildMessage(LogInfoMode, message))
 }
 
 func (l *SimpleLogger) Error(message interface{}) {
-	log.Println(l.buildMessage(logErrorMode, message))
+	log.Println(l.buildMessage(LogErrorMode, message))
 }
 
 func (l *SimpleLogger) Debug(message interface{}) {
-	log.Println(l.buildMessage(logDebugMode, message))
+	log.Println(l.buildMessage(LogDebugMode, message))
 }
 
 func (l *SimpleLogger) Warn(message interface{}) {
-	log.Println(l.buildMessage(logWarnMode, message))
+	log.Println(l.buildMessage(LogWarnMode, message))
 }
 
 func (l *SimpleLogger) FixedFieldsValues() []FieldValue {
-	return l.fieldsValues
+	return l.FieldsValues
 }
 
 func (l *SimpleLogger) buildMessage(level string, message interface{}) string {
@@ -99,8 +98,11 @@ func (l *SimpleLogger) SetWriter(writer io.Writer) {
 }
 
 func (l *SimpleLogger) Init() {
+	if l.FieldsValues == nil {
+		l.FieldsValues = []FieldValue{}
+	}
 	builder := strings.Builder{}
-	for _, fv := range l.fieldsValues {
+	for _, fv := range l.FieldsValues {
 		builder.WriteString(" [")
 		builder.WriteString(fv.Key)
 		builder.WriteString(": ")
@@ -116,6 +118,3 @@ type FieldValue struct {
 	Val interface{}
 }
 
-func FixedValue(key string, val interface{}) FieldValue {
-	return FieldValue{Key: key, Val: val}
-}

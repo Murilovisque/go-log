@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	logs "github.com/Murilovisque/logs/internal"
+	logs "github.com/Murilovisque/logs/v2/internal"
 )
 
 type TimeRotatingScheme int
@@ -20,6 +20,11 @@ type TimeRotatingScheme int
 const (
 	PerDay TimeRotatingScheme = iota
 	PerHour
+)
+
+const (
+	PerDayConfig = "PER_DAY"
+	PerHourConfig = "PER_HOUR"
 )
 
 var (
@@ -70,7 +75,7 @@ type TimeRotatingLogger struct {
 	logs.SimpleLogger
 }
 
-func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, amountOfFilesToRetain int) (*TimeRotatingLogger, error) {
+func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, amountOfFilesToRetain int, fixedValues ...logs.FieldValue) (*TimeRotatingLogger, error) {
 	if amountOfFilesToRetain < 0 {
 		return nil, ErrInvalidAmountOfFilesToRetain
 	}
@@ -79,12 +84,19 @@ func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, a
 	if err != nil {
 		return nil, err
 	}
-	t := TimeRotatingLogger{rotatingScheme: rotatingScheme, filename: filename, file: f, closeListener: make(chan int), amountOfFilesToRetain: amountOfFilesToRetain}
+	t := TimeRotatingLogger{
+		rotatingScheme: rotatingScheme,
+		filename: filename,
+		file: f,
+		closeListener: make(chan int),
+		amountOfFilesToRetain: amountOfFilesToRetain,
+		SimpleLogger: logs.SimpleLogger{FieldsValues: fixedValues[:]},
+	}
 	return &t, nil
 }
 
 func (trl *TimeRotatingLogger) Init() {
-	trl.Init()
+	trl.SimpleLogger.Init()
 	log.SetOutput(trl)
 	go rotatingFile(trl)
 }
@@ -155,14 +167,14 @@ func removeOldFiles(moment time.Time, trl *TimeRotatingLogger) {
 	filenameWithoutExtGlob := trl.filename[:len(trl.filename)-len(filenameExt)] + "*"
 	fileEntries, err := filepath.Glob(filenameWithoutExtGlob)
 	if err != nil {
-		logs.Errorf("Glob %s failed. Is was not possible to remove old files - Error: %s", filenameWithoutExtGlob, err)
+		trl.Errorf("Glob %s failed. Is was not possible to remove old files - Error: %s", filenameWithoutExtGlob, err)
 	} else {
 		lastFileTime := lastFileTimeToRetain(moment, trl)
 		for _, filename := range fileEntries {
 			if mustFileBeRemoved(lastFileTime, filename, trl) {
 				err := os.Remove(filename)
 				if err != nil {
-					logs.Errorf("Is was not possible to remove the old file %s - Error: %s", filename, err)
+					trl.Errorf("Is was not possible to remove the old file %s - Error: %s", filename, err)
 				}
 			}
 		}
@@ -179,7 +191,7 @@ func rotatingFile(trl *TimeRotatingLogger) {
 			newFilename := buildFilenameWithTimeExtension(moment, trl.filename, trl.rotatingScheme)
 			f, err := os.OpenFile(newFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
-				logs.Errorf("It was not possible rotate to file %s - Error: %s", newFilename, err)
+				trl.Errorf("It was not possible rotate to file %s - Error: %s", newFilename, err)
 			} else {
 				trl.mux.Lock()
 				trl.file.(*os.File).Close()
