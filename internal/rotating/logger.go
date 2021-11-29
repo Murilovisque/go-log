@@ -15,16 +15,11 @@ import (
 	logs "github.com/Murilovisque/logs/v2/internal"
 )
 
-type TimeRotatingScheme int
+type TimeRotatingScheme string
 
 const (
-	PerDay TimeRotatingScheme = iota
-	PerHour
-)
-
-const (
-	PerDayConfig = "perDay"
-	PerHourConfig = "perHour"
+	PerDay TimeRotatingScheme = "perDay"
+	PerHour TimeRotatingScheme = "perHour"
 )
 
 var (

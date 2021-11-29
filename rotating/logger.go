@@ -14,12 +14,12 @@ var (
 func StringToTimeRotatingScheme(s string) (rotating.TimeRotatingScheme, error)  {
 	s = strings.ToUpper(s)
 	switch(s) {
-	case rotating.PerDayConfig:
+	case strings.ToUpper(string(rotating.PerDay)):
 		return rotating.PerDay, nil
-	case rotating.PerHourConfig:
+	case strings.ToUpper(string(rotating.PerHour)):
 		return rotating.PerHour, nil
 	default:
-		return -1, ErrTimeRotatingSchemeConversion
+		return "", ErrTimeRotatingSchemeConversion
 	}
 }
 
