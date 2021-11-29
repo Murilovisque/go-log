@@ -35,6 +35,7 @@ type Logger interface {
 	SetWriter(io.Writer)
 	Init()
 	FixedFieldsValues() []FieldValue
+	Close()
 }
 
 
@@ -86,6 +87,8 @@ func (l *SimpleLogger) Warn(message interface{}) {
 func (l *SimpleLogger) FixedFieldsValues() []FieldValue {
 	return l.FieldsValues
 }
+
+func (l *SimpleLogger) Close() {}
 
 func (l *SimpleLogger) buildMessage(level LoggerLevelMode, message interface{}) string {
 	return fmt.Sprintf("%s%s%v", level, l.fixedLogMessage, message)

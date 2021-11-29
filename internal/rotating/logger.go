@@ -117,7 +117,7 @@ func (trl *TimeRotatingLogger) Close() {
 	if !trl.closed {
 		trl.closed = true
 		trl.closeListener <- 1
-        trl.file.(*os.File).Sync()
+		trl.file.(*os.File).Sync()
 		trl.file.(*os.File).Close()
 		trl.file = os.Stderr
 	}

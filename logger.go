@@ -120,3 +120,8 @@ func (l *loggerLevel) Init() {
 func (l *loggerLevel) FixedFieldsValues() []logs.FieldValue {
 	return l.realLogger.FixedFieldsValues()
 }
+
+func (l *loggerLevel) Close() {
+	l.realLogger.Close()
+}
+

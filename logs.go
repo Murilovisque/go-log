@@ -53,6 +53,10 @@ func NewChildLogger(fixedValues ...logs.FieldValue) Logger {
 	return l
 }
 
+func Close() {
+	globalLogger.Close()
+}
+
 func StringToLoggerLevelMode(level string) (logs.LoggerLevelMode, error) {
 	level = strings.ToUpper(level)
 	for _, l := range logs.LogsMode {
