@@ -23,8 +23,8 @@ const (
 )
 
 const (
-	PerDayConfig = "PER_DAY"
-	PerHourConfig = "PER_HOUR"
+	PerDayConfig = "perDay"
+	PerHourConfig = "perHour"
 )
 
 var (
