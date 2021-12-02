@@ -144,7 +144,7 @@ func mustFileBeRemoved(lastFileTime time.Time, filenameToCheck string, trl *Time
 	regexPattern := fmt.Sprintf("^%s-(%s)%s$", filenameWithoutExt, trl.rotatingScheme.timeExtensionRegex(), filenameExt)
 	regex, err := regexp.Compile(regexPattern)
 	if err != nil {
-		trl.Errorf(" to generate the regex pattern to remove old files %v", err)
+		trl.Errorf("Error to generate the regex pattern to remove old files %v", err)
 		return false
 	}
 	matchGroups := regex.FindStringSubmatch(filenameToCheck)
@@ -180,12 +180,13 @@ func removeOldFiles(moment time.Time, trl *TimeRotatingLogger) {
 
 func rotatingFile(trl *TimeRotatingLogger) {
 	next := durationUntilNextRotating(time.Now(), trl.rotatingScheme)
+	trl.Debugf("Next log rotation will be at %v", next)
 	tick := time.NewTicker(next)
 	for {
 		select {
 		case <-tick.C:
 			moment := time.Now().Truncate(trl.rotatingScheme.rotatingInterval())
-			trl.Debugf("Starting rotating operation %v", moment)
+			trl.Debugf("Starting log rotating operation %v", moment)
 			newFilename := buildFilenameWithTimeExtension(moment, trl.filename, trl.rotatingScheme)
 			f, err := os.OpenFile(newFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
@@ -199,7 +200,7 @@ func rotatingFile(trl *TimeRotatingLogger) {
 			}
 			removeOldFiles(moment, trl)
 			next = durationUntilNextRotating(time.Now(), trl.rotatingScheme)
-			trl.Debugf("Rotatting operation finished, next will be at %v", next)
+			trl.Debugf("Log rotating operation finished, next will be at %v", next)
 			tick.Reset(next)
 		case <-trl.closeListener:
 			return

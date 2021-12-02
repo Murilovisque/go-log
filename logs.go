@@ -66,6 +66,7 @@ func initGlobalLogger(level logs.LoggerLevelMode, l logs.Logger) error {
 	}
 	levelSelected = level
 	globalLogger.Init()
+	Info("Log initialized")
 	return nil
 }
 
