@@ -8,7 +8,6 @@ import (
 	"errors"
 
 	logs "github.com/Murilovisque/logs/v2/internal"
-	"github.com/Murilovisque/logs/v2/internal/rotating"
 )
 
 var (
@@ -35,14 +34,6 @@ func InitWithLogFile(level logs.LoggerLevelMode, filename string, fixedValues ..
 
 func InitWithWriter(level logs.LoggerLevelMode, w io.Writer, fixedValues ...logs.FieldValue) error {
 	return initGlobalLogger(level, newLoggerWithWriter(w, fixedValues...))
-}
-
-func InitWithRotatingLogFile(level logs.LoggerLevelMode, filename string, rotatingScheme rotating.TimeRotatingScheme, amountOfFilesToRetain int, fixedValues ...logs.FieldValue) error {
-	l, err := rotating.NewTimeRotatingLogger(filename, rotatingScheme, amountOfFilesToRetain, fixedValues...)
-	if err != nil {
-		return err
-	}
-	return initGlobalLogger(level, l)
 }
 
 func NewChildLogger(fixedValues ...logs.FieldValue) Logger {

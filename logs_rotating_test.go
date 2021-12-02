@@ -1,4 +1,4 @@
-package rotating
+package logs
 
 import (
 	"testing"

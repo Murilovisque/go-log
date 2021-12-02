@@ -6,6 +6,14 @@ import (
 	logs "github.com/Murilovisque/logs/v2/internal"
 )
 
+const (
+	LevelFatal = logs.LogFatalMode
+	LevelError = logs.LogErrorMode
+	LevelWarn = logs.LogWarnMode
+	LevelInfo = logs.LogInfoMode
+	LevelDebug = logs.LogDebugMode
+)
+
 type Logger interface {
 	Fatalf(message string, v ...interface{})
 	Infof(message string, v ...interface{})
