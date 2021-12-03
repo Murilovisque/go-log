@@ -139,8 +139,9 @@ func lastFileTimeToRetain(moment time.Time, trl *TimeRotatingLogger) time.Time {
 }
 
 func mustFileBeRemoved(lastFileTime time.Time, filenameToCheck string, trl *TimeRotatingLogger) bool {
-	filenameExt := path.Ext(trl.filename)
-	filenameWithoutExt := trl.filename[:len(trl.filename)-len(filenameExt)]
+	filenameEscaped := regexp.QuoteMeta(trl.filename)
+	filenameExt := path.Ext(filenameEscaped)
+	filenameWithoutExt := filenameEscaped[:len(filenameEscaped)-len(filenameExt)]
 	regexPattern := fmt.Sprintf("^%s-(%s)%s$", filenameWithoutExt, trl.rotatingScheme.timeExtensionRegex(), filenameExt)
 	regex, err := regexp.Compile(regexPattern)
 	if err != nil {
