@@ -9,7 +9,7 @@ import (
 
 var (
 	logWriter = logWriterTest{}
-	sl = logs.SimpleLogger{ }
+	sl = logs.SimpleLogger{ LevelSelected: logs.LogDebugMode }
 )
 
 func TestShouldLogBasedInGlobalLoggerWithFixedFields(t *testing.T) {

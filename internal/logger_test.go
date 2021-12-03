@@ -8,7 +8,7 @@ import (
 
 var (
 	logWriter = logWriterTest{}
-	sl = SimpleLogger{ }
+	sl = SimpleLogger{ LevelSelected: LogDebugMode }
 )
 
 func TestShouldLogSimpleMessage(t *testing.T) {
@@ -44,7 +44,7 @@ func TestShouldLogFormattedMessageWithFixedFields(t *testing.T) {
 }
 
 func setup(fixedValues ...FieldValue) {
-	sl = SimpleLogger{ FieldsValues: fixedValues }
+	sl = SimpleLogger{ FieldsValues: fixedValues, LevelSelected: LogDebugMode }
 	sl.SetWriter(&logWriter)
 	sl.Init()
 }

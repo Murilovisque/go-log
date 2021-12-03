@@ -18,7 +18,7 @@ var (
 )
 
 func InitWithRotatingLogFile(level logs.LoggerLevelMode, filename string, rotatingScheme rotating.TimeRotatingScheme, amountOfFilesToRetain int, fixedValues ...logs.FieldValue) error {
-	l, err := rotating.NewTimeRotatingLogger(filename, rotatingScheme, amountOfFilesToRetain, fixedValues...)
+	l, err := rotating.NewTimeRotatingLogger(level, filename, rotatingScheme, amountOfFilesToRetain, fixedValues...)
 	if err != nil {
 		return err
 	}

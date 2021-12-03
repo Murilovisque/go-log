@@ -18,14 +18,14 @@ var (
 
 func init() {
 	log.SetFlags(log.LstdFlags)
-	err := initGlobalLogger(levelSelected, &logs.SimpleLogger{FieldsValues: []logs.FieldValue{}})
+	err := initGlobalLogger(levelSelected, &logs.SimpleLogger{FieldsValues: []logs.FieldValue{}, LevelSelected: levelSelected})
 	if err != nil {
 		panic(err)
 	}
 }
 
 func InitWithLogFile(level logs.LoggerLevelMode, filename string, fixedValues ...logs.FieldValue) error {
-	l, err := newLoggerWithLogFile(filename, fixedValues...)
+	l, err := newLoggerWithLogFile(level, filename, fixedValues...)
 	if err != nil {
 		return err
 	}
@@ -33,15 +33,15 @@ func InitWithLogFile(level logs.LoggerLevelMode, filename string, fixedValues ..
 }
 
 func InitWithWriter(level logs.LoggerLevelMode, w io.Writer, fixedValues ...logs.FieldValue) error {
-	return initGlobalLogger(level, newLoggerWithWriter(w, fixedValues...))
+	return initGlobalLogger(level, newLoggerWithWriter(level, w, fixedValues...))
 }
 
 func NewChildLogger(fixedValues ...logs.FieldValue) Logger {
 	globalFixedValues := globalLogger.FixedFieldsValues()[:]
 	globalFixedValues = append(globalFixedValues, fixedValues...)
-	l, _ := newLoggerLevel(levelSelected, &logs.SimpleLogger{FieldsValues: globalFixedValues[:]})
+	l := logs.SimpleLogger{FieldsValues: globalFixedValues[:], LevelSelected: levelSelected}
 	l.Init()
-	return l
+	return &l
 }
 
 func Close() {
@@ -59,29 +59,25 @@ func StringToLoggerLevelMode(level string) (logs.LoggerLevelMode, error) {
 }
 
 func initGlobalLogger(level logs.LoggerLevelMode, l logs.Logger) error {
-	var err error
-	globalLogger, err = newLoggerLevel(level, l)
-	if err != nil {
-		return err
-	}
 	levelSelected = level
+	globalLogger = l
 	globalLogger.Init()
 	Info("Log initialized")
 	return nil
 }
 
-func newLoggerWithWriter(w io.Writer, fixedValues ...logs.FieldValue) logs.Logger {
-	l := logs.SimpleLogger{FieldsValues: fixedValues[:]}
+func newLoggerWithWriter(level logs.LoggerLevelMode, w io.Writer, fixedValues ...logs.FieldValue) logs.Logger {
+	l := logs.SimpleLogger{FieldsValues: fixedValues[:], LevelSelected: level}
 	l.SetWriter(w)
 	return &l
 }
 
-func newLoggerWithLogFile(filename string, fixedValues ...logs.FieldValue) (logs.Logger, error) {
+func newLoggerWithLogFile(level logs.LoggerLevelMode, filename string, fixedValues ...logs.FieldValue) (logs.Logger, error) {
 	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
-	return newLoggerWithWriter(f, fixedValues...), nil
+	return newLoggerWithWriter(level, f, fixedValues...), nil
 }
 
 

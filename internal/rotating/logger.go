@@ -70,7 +70,7 @@ type TimeRotatingLogger struct {
 	logs.SimpleLogger
 }
 
-func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, amountOfFilesToRetain int, fixedValues ...logs.FieldValue) (*TimeRotatingLogger, error) {
+func NewTimeRotatingLogger(level logs.LoggerLevelMode, filename string, rotatingScheme TimeRotatingScheme, amountOfFilesToRetain int, fixedValues ...logs.FieldValue) (*TimeRotatingLogger, error) {
 	if amountOfFilesToRetain < 0 {
 		return nil, ErrInvalidAmountOfFilesToRetain
 	}
@@ -85,7 +85,7 @@ func NewTimeRotatingLogger(filename string, rotatingScheme TimeRotatingScheme, a
 		file: f,
 		closeListener: make(chan int),
 		amountOfFilesToRetain: amountOfFilesToRetain,
-		SimpleLogger: logs.SimpleLogger{FieldsValues: fixedValues[:]},
+		SimpleLogger: logs.SimpleLogger{FieldsValues: fixedValues[:], LevelSelected: level},
 	}
 	return &t, nil
 }
