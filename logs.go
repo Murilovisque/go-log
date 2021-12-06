@@ -62,7 +62,7 @@ func initGlobalLogger(level logs.LoggerLevelMode, l logs.Logger) error {
 	levelSelected = level
 	globalLogger = l
 	globalLogger.Init()
-	Info("Log initialized")
+	Infof("Log initialized with level %v", level)
 	return nil
 }
 

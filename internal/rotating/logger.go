@@ -180,6 +180,7 @@ func removeOldFiles(moment time.Time, trl *TimeRotatingLogger) {
 }
 
 func rotatingFile(trl *TimeRotatingLogger) {
+	trl.Infof("Starting the log rotation")
 	next := durationUntilNextRotating(time.Now(), trl.rotatingScheme)
 	trl.Debugf("Next log rotation will be at %v", next)
 	tick := time.NewTicker(next)
