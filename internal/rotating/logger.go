@@ -18,7 +18,7 @@ import (
 type TimeRotatingScheme string
 
 const (
-	PerDay TimeRotatingScheme = "perDay"
+	PerDay  TimeRotatingScheme = "perDay"
 	PerHour TimeRotatingScheme = "perHour"
 )
 
@@ -32,6 +32,31 @@ func (trs TimeRotatingScheme) rotatingInterval() time.Duration {
 		return time.Hour * 24
 	case PerHour:
 		return time.Hour
+	default:
+		panic("Not implemented")
+	}
+}
+
+func (trs TimeRotatingScheme) nextTimeAfter(t time.Time) time.Time {
+	switch trs {
+	case PerDay:
+		t = t.Add(time.Hour * 24)
+		return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	case PerHour:
+		t = t.Add(time.Hour)
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
+	default:
+		panic("Not implemented")
+	}
+}
+
+func (trs TimeRotatingScheme) nowTruncated() time.Time {
+	t := time.Now()
+	switch trs {
+	case PerDay:
+		return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	case PerHour:
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 	default:
 		panic("Not implemented")
 	}
@@ -80,12 +105,12 @@ func NewTimeRotatingLogger(level logs.LoggerLevelMode, filename string, rotating
 		return nil, err
 	}
 	t := TimeRotatingLogger{
-		rotatingScheme: rotatingScheme,
-		filename: filename,
-		file: f,
-		closeListener: make(chan int),
+		rotatingScheme:        rotatingScheme,
+		filename:              filename,
+		file:                  f,
+		closeListener:         make(chan int),
 		amountOfFilesToRetain: amountOfFilesToRetain,
-		SimpleLogger: logs.SimpleLogger{FieldsValues: fixedValues[:], LevelSelected: level},
+		SimpleLogger:          logs.SimpleLogger{FieldsValues: fixedValues[:], LevelSelected: level},
 	}
 	return &t, nil
 }
@@ -120,7 +145,7 @@ func (trl *TimeRotatingLogger) Close() {
 }
 
 func durationUntilNextRotating(moment time.Time, rotatingScheme TimeRotatingScheme) time.Duration {
-	nextRotatingTime := moment.Add(rotatingScheme.rotatingInterval()).Truncate(rotatingScheme.rotatingInterval())
+	nextRotatingTime := rotatingScheme.nextTimeAfter(moment)
 	nextDuration := nextRotatingTime.Sub(moment)
 	if nextDuration < 1 {
 		return 1
@@ -187,7 +212,7 @@ func rotatingFile(trl *TimeRotatingLogger) {
 	for {
 		select {
 		case <-tick.C:
-			moment := time.Now().Truncate(trl.rotatingScheme.rotatingInterval())
+			moment := trl.rotatingScheme.nowTruncated()
 			trl.Debugf("Starting log rotating operation %v", moment)
 			newFilename := buildFilenameWithTimeExtension(moment, trl.filename, trl.rotatingScheme)
 			f, err := os.OpenFile(newFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
