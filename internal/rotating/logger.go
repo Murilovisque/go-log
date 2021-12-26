@@ -37,10 +37,10 @@ func (trs TimeRotatingScheme) rotatingInterval() time.Duration {
 	}
 }
 
-func (trs TimeRotatingScheme) nextTimeAfter(t time.Time) time.Time {
+func (trs TimeRotatingScheme) nextTruncatedTimeAfter(t time.Time) time.Time {
 	switch trs {
 	case PerDay:
-		t = t.Add(time.Hour * 24)
+		t = t.AddDate(0, 0, 1)
 		return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 	case PerHour:
 		t = t.Add(time.Hour)
@@ -145,7 +145,7 @@ func (trl *TimeRotatingLogger) Close() {
 }
 
 func durationUntilNextRotating(moment time.Time, rotatingScheme TimeRotatingScheme) time.Duration {
-	nextRotatingTime := rotatingScheme.nextTimeAfter(moment)
+	nextRotatingTime := rotatingScheme.nextTruncatedTimeAfter(moment)
 	nextDuration := nextRotatingTime.Sub(moment)
 	if nextDuration < 1 {
 		return 1
