@@ -90,7 +90,8 @@ type TimeRotatingLogger struct {
 	file                  io.Writer
 	mux                   sync.Mutex
 	amountOfFilesToRetain int
-	closeListener         chan int
+	closeSignalListener   chan int
+	closedListener        chan int
 	closed                bool
 	logs.SimpleLogger
 }
@@ -108,7 +109,8 @@ func NewTimeRotatingLogger(level logs.LoggerLevelMode, filename string, rotating
 		rotatingScheme:        rotatingScheme,
 		filename:              filename,
 		file:                  f,
-		closeListener:         make(chan int),
+		closeSignalListener:   make(chan int),
+		closedListener:        make(chan int, 1),
 		amountOfFilesToRetain: amountOfFilesToRetain,
 		SimpleLogger:          logs.SimpleLogger{FieldsValues: fixedValues[:], LevelSelected: level},
 	}
@@ -133,15 +135,18 @@ func (trl *TimeRotatingLogger) SetWriter(writer io.Writer) {
 }
 
 func (trl *TimeRotatingLogger) Close() {
-	trl.mux.Lock()
 	if !trl.closed {
 		trl.closed = true
-		trl.closeListener <- 1
+		trl.closeSignalListener <- 1
+		moment := trl.rotatingScheme.nowTruncated()
+		removeOldFiles(moment, trl)
+		trl.mux.Lock()
 		trl.file.(*os.File).Sync()
 		trl.file.(*os.File).Close()
 		trl.file = os.Stderr
+		trl.mux.Unlock()
 	}
-	trl.mux.Unlock()
+	<-trl.closedListener
 }
 
 func durationUntilNextRotating(moment time.Time, rotatingScheme TimeRotatingScheme) time.Duration {
@@ -220,6 +225,7 @@ func rotatingFile(trl *TimeRotatingLogger) {
 				trl.Errorf("It was not possible rotate to file %s - Error: %s", newFilename, err)
 			} else {
 				trl.mux.Lock()
+				trl.file.(*os.File).Sync()
 				trl.file.(*os.File).Close()
 				trl.file = f
 				trl.mux.Unlock()
@@ -227,9 +233,10 @@ func rotatingFile(trl *TimeRotatingLogger) {
 			}
 			removeOldFiles(moment, trl)
 			next = durationUntilNextRotating(time.Now(), trl.rotatingScheme)
-			trl.Debugf("Log rotating operation finished, next will be at %v", next)
 			tick.Reset(next)
-		case <-trl.closeListener:
+			trl.Debugf("Log rotating operation finished, next will be at %v", next)
+		case <-trl.closeSignalListener:
+			trl.closedListener <- 1
 			return
 		}
 	}
