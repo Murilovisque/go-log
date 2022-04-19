@@ -4,12 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	logs "github.com/Murilovisque/logs/v2/internal"
+	logs "github.com/Murilovisque/logs/v3/internal"
 )
 
 var (
 	logWriter = logWriterTest{}
-	sl = logs.SimpleLogger{ LevelSelected: logs.LogDebugMode }
+	sl        = logs.SimpleLogger{LevelSelected: logs.LogDebugMode}
 )
 
 func TestShouldLogBasedInGlobalLoggerWithFixedFields(t *testing.T) {
@@ -55,4 +55,3 @@ func (w *logWriterTest) assertLogMessage(t *testing.T, m string) {
 		t.Fatalf("Expected '%s', but '%s' was logged\n", m, w.lastLog)
 	}
 }
-

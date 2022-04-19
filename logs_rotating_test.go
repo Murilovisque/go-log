@@ -3,7 +3,7 @@ package logs
 import (
 	"testing"
 
-	"github.com/Murilovisque/logs/v2/internal/rotating"
+	"github.com/Murilovisque/logs/v3/internal/rotating"
 )
 
 func TestShouldConvertStringToTimeScheme(t *testing.T) {

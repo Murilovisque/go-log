@@ -9,17 +9,21 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
-	logs "github.com/Murilovisque/logs/v2/internal"
+	logs "github.com/Murilovisque/logs/v3/internal"
+	"github.com/Murilovisque/logs/v3/internal/compressor"
 )
 
 type TimeRotatingScheme string
 
 const (
-	PerDay  TimeRotatingScheme = "perDay"
-	PerHour TimeRotatingScheme = "perHour"
+	PerDay            TimeRotatingScheme = "perDay"
+	PerHour           TimeRotatingScheme = "perHour"
+	zipExtension                         = ".zip"
+	zipExtensionRegex                    = "\\.zip"
 )
 
 var (
@@ -87,16 +91,18 @@ func (trs TimeRotatingScheme) timeExtensionRegex() string {
 type TimeRotatingLogger struct {
 	rotatingScheme        TimeRotatingScheme
 	filename              string
+	currentLogFilename    string
 	file                  io.Writer
 	mux                   sync.Mutex
 	amountOfFilesToRetain int
+	compressOldFiles      bool
 	closeSignalListener   chan int
 	closedListener        chan int
 	closed                bool
 	logs.SimpleLogger
 }
 
-func NewTimeRotatingLogger(level logs.LoggerLevelMode, filename string, rotatingScheme TimeRotatingScheme, amountOfFilesToRetain int, fixedValues ...logs.FieldValue) (*TimeRotatingLogger, error) {
+func NewTimeRotatingLogger(level logs.LoggerLevelMode, filename string, rotatingScheme TimeRotatingScheme, amountOfFilesToRetain int, compressOldFiles bool, fixedValues ...logs.FieldValue) (*TimeRotatingLogger, error) {
 	if amountOfFilesToRetain < 0 {
 		return nil, ErrInvalidAmountOfFilesToRetain
 	}
@@ -108,10 +114,12 @@ func NewTimeRotatingLogger(level logs.LoggerLevelMode, filename string, rotating
 	t := TimeRotatingLogger{
 		rotatingScheme:        rotatingScheme,
 		filename:              filename,
+		currentLogFilename:    newFilename,
 		file:                  f,
 		closeSignalListener:   make(chan int),
 		closedListener:        make(chan int, 1),
 		amountOfFilesToRetain: amountOfFilesToRetain,
+		compressOldFiles:      compressOldFiles,
 		SimpleLogger:          logs.SimpleLogger{FieldsValues: fixedValues[:], LevelSelected: level},
 	}
 	return &t, nil
@@ -159,7 +167,7 @@ func durationUntilNextRotating(moment time.Time, rotatingScheme TimeRotatingSche
 }
 
 func buildFilenameWithTimeExtension(moment time.Time, filename string, rotatingScheme TimeRotatingScheme) string {
-	filenameExt := path.Ext(filename)
+	filenameExt := getFilenameExt(filename, true)
 	filenameWithoutExt := filename[:len(filename)-len(filenameExt)]
 	return fmt.Sprintf("%s-%s%s", filenameWithoutExt, moment.Format(rotatingScheme.timeExtensionFormat()), filenameExt)
 }
@@ -170,28 +178,49 @@ func lastFileTimeToRetain(moment time.Time, trl *TimeRotatingLogger) time.Time {
 
 func mustFileBeRemoved(lastFileTime time.Time, filenameToCheck string, trl *TimeRotatingLogger) bool {
 	filenameEscaped := regexp.QuoteMeta(trl.filename)
-	filenameExt := path.Ext(filenameEscaped)
-	filenameWithoutExt := filenameEscaped[:len(filenameEscaped)-len(filenameExt)]
-	regexPattern := fmt.Sprintf("^%s-(%s)%s$", filenameWithoutExt, trl.rotatingScheme.timeExtensionRegex(), filenameExt)
+	filenameExt := getFilenameExt(filenameEscaped, false)
+	filenameWithoutExt := getFilenameWithoutExt(filenameEscaped)
+	regexPattern := fmt.Sprintf("^%s-(%s)%s(%s)?$", filenameWithoutExt, trl.rotatingScheme.timeExtensionRegex(), filenameExt, zipExtensionRegex)
 	regex, err := regexp.Compile(regexPattern)
 	if err != nil {
 		trl.Errorf("Error to generate the regex pattern to remove old files %v", err)
 		return false
 	}
 	matchGroups := regex.FindStringSubmatch(filenameToCheck)
-	if len(matchGroups) == 0 {
+	if len(matchGroups) < 2 {
 		return false
 	}
-	fileTime, err := time.ParseInLocation(trl.rotatingScheme.timeExtensionFormat(), matchGroups[len(matchGroups)-1], lastFileTime.Location())
+	fileTime, err := time.ParseInLocation(trl.rotatingScheme.timeExtensionFormat(), matchGroups[1], lastFileTime.Location())
 	if err != nil {
 		return false
 	}
 	return fileTime.Before(lastFileTime)
 }
 
+func getFilenameWithoutExt(filename string) string {
+	filenameExt := getFilenameExt(filename, true)
+	return filename[:len(filename)-len(filenameExt)]
+}
+
+func getFilenameGlobWithoutExt(filename string) string {
+	filenameExt := getFilenameExt(filename, true)
+	return filename[:len(filename)-len(filenameExt)] + "*"
+}
+
+func getFilenameExt(filename string, includeCompressExtension bool) string {
+	filenameSize := len(filename)
+	if strings.HasSuffix(filename, zipExtension) {
+		ext := path.Ext(filename[:filenameSize-len(zipExtension)])
+		if includeCompressExtension {
+			return ext + zipExtension
+		}
+		return ext
+	}
+	return path.Ext(filename)
+}
+
 func removeOldFiles(moment time.Time, trl *TimeRotatingLogger) {
-	filenameExt := path.Ext(trl.filename)
-	filenameWithoutExtGlob := trl.filename[:len(trl.filename)-len(filenameExt)] + "*"
+	filenameWithoutExtGlob := getFilenameGlobWithoutExt(trl.filename)
 	fileEntries, err := filepath.Glob(filenameWithoutExtGlob)
 	if err != nil {
 		trl.Errorf("Glob %s failed. Is was not possible to remove old files - Error: %s", filenameWithoutExtGlob, err)
@@ -224,11 +253,21 @@ func rotatingFile(trl *TimeRotatingLogger) {
 			if err != nil {
 				trl.Errorf("It was not possible rotate to file %s - Error: %s", newFilename, err)
 			} else {
+				oldLogFilename := trl.currentLogFilename
 				trl.mux.Lock()
 				trl.file.(*os.File).Sync()
 				trl.file.(*os.File).Close()
+				trl.currentLogFilename = newFilename
 				trl.file = f
 				trl.mux.Unlock()
+				if trl.compressOldFiles {
+					err := compressor.ComprimirArquivo(oldLogFilename)
+					if err != nil {
+						trl.Errorf("It was not possible compress the file %s - Error: %s", oldLogFilename, err)
+					} else {
+						os.Remove(oldLogFilename)
+					}
+				}
 				trl.Debugf("Log rotated to new file: %s", newFilename)
 			}
 			removeOldFiles(moment, trl)

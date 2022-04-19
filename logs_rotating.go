@@ -4,30 +4,30 @@ import (
 	"errors"
 	"strings"
 
-	logs "github.com/Murilovisque/logs/v2/internal"
-	"github.com/Murilovisque/logs/v2/internal/rotating"
+	logs "github.com/Murilovisque/logs/v3/internal"
+	"github.com/Murilovisque/logs/v3/internal/rotating"
 )
 
 const (
-	RotatingSchemaPerDay = rotating.PerDay
+	RotatingSchemaPerDay  = rotating.PerDay
 	RotatingSchemaPerHour = rotating.PerHour
 )
 
 var (
-	errTimeRotatingSchemeConversion = errors.New("Time rotationg scheme conversion failed")
+	errTimeRotatingSchemeConversion = errors.New("time rotationg scheme conversion failed")
 )
 
-func InitWithRotatingLogFile(level logs.LoggerLevelMode, filename string, rotatingScheme rotating.TimeRotatingScheme, amountOfFilesToRetain int, fixedValues ...logs.FieldValue) error {
-	l, err := rotating.NewTimeRotatingLogger(level, filename, rotatingScheme, amountOfFilesToRetain, fixedValues...)
+func InitWithRotatingLogFile(level logs.LoggerLevelMode, filename string, rotatingScheme rotating.TimeRotatingScheme, amountOfFilesToRetain int, compressOldFiles bool, fixedValues ...logs.FieldValue) error {
+	l, err := rotating.NewTimeRotatingLogger(level, filename, rotatingScheme, amountOfFilesToRetain, compressOldFiles, fixedValues...)
 	if err != nil {
 		return err
 	}
 	return initGlobalLogger(level, l)
 }
 
-func StringToTimeRotatingScheme(s string) (rotating.TimeRotatingScheme, error)  {
+func StringToTimeRotatingScheme(s string) (rotating.TimeRotatingScheme, error) {
 	s = strings.ToUpper(s)
-	switch(s) {
+	switch s {
 	case strings.ToUpper(string(rotating.PerDay)):
 		return rotating.PerDay, nil
 	case strings.ToUpper(string(rotating.PerHour)):
@@ -36,4 +36,3 @@ func StringToTimeRotatingScheme(s string) (rotating.TimeRotatingScheme, error)  
 		return "", errTimeRotatingSchemeConversion
 	}
 }
-

@@ -12,8 +12,8 @@ type LoggerLevelMode string
 const (
 	LogFatalMode LoggerLevelMode = "FATAL"
 	LogErrorMode LoggerLevelMode = "ERROR"
-	LogWarnMode LoggerLevelMode = "WARN"
-	LogInfoMode LoggerLevelMode = "INFO"
+	LogWarnMode  LoggerLevelMode = "WARN"
+	LogInfoMode  LoggerLevelMode = "INFO"
 	LogDebugMode LoggerLevelMode = "DEBUG"
 )
 
@@ -38,14 +38,13 @@ type Logger interface {
 	Close()
 }
 
-
 type SimpleLogger struct {
-	FieldsValues []FieldValue
-	LevelSelected LoggerLevelMode
+	FieldsValues    []FieldValue
+	LevelSelected   LoggerLevelMode
 	fixedLogMessage string
 	logErrorEnabled bool
-	logWarnEnabled bool
-	logInfoEnabled bool
+	logWarnEnabled  bool
+	logInfoEnabled  bool
 	logDebugEnabled bool
 }
 
@@ -64,10 +63,10 @@ func (l *SimpleLogger) Init() {
 	builder.WriteString(" * ")
 	l.fixedLogMessage = builder.String()
 
-	l.logErrorEnabled = anyLevelMatch(l.LevelSelected, []LoggerLevelMode{ LogErrorMode, LogWarnMode, LogInfoMode, LogDebugMode })
-	l.logWarnEnabled = anyLevelMatch(l.LevelSelected, []LoggerLevelMode{ LogWarnMode, LogInfoMode, LogDebugMode })
-	l.logInfoEnabled = anyLevelMatch(l.LevelSelected, []LoggerLevelMode{ LogInfoMode, LogDebugMode })
-	l.logDebugEnabled = anyLevelMatch(l.LevelSelected, []LoggerLevelMode{ LogDebugMode })
+	l.logErrorEnabled = anyLevelMatch(l.LevelSelected, []LoggerLevelMode{LogErrorMode, LogWarnMode, LogInfoMode, LogDebugMode})
+	l.logWarnEnabled = anyLevelMatch(l.LevelSelected, []LoggerLevelMode{LogWarnMode, LogInfoMode, LogDebugMode})
+	l.logInfoEnabled = anyLevelMatch(l.LevelSelected, []LoggerLevelMode{LogInfoMode, LogDebugMode})
+	l.logDebugEnabled = anyLevelMatch(l.LevelSelected, []LoggerLevelMode{LogDebugMode})
 }
 
 func anyLevelMatch(level LoggerLevelMode, allowedLevels []LoggerLevelMode) bool {
@@ -157,4 +156,3 @@ type FieldValue struct {
 	Key string
 	Val interface{}
 }
-

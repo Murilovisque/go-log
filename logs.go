@@ -1,19 +1,19 @@
 package logs
 
 import (
+	"errors"
 	"io"
 	"log"
 	"os"
 	"strings"
-	"errors"
 
-	logs "github.com/Murilovisque/logs/v2/internal"
+	logs "github.com/Murilovisque/logs/v3/internal"
 )
 
 var (
-	globalLogger logs.Logger
-	levelSelected logs.LoggerLevelMode = logs.LogDebugMode
-	ErrInvalidLevel = errors.New("Invalid logger level mode")
+	globalLogger    logs.Logger
+	levelSelected   logs.LoggerLevelMode = logs.LogDebugMode
+	ErrInvalidLevel                      = errors.New("invalid logger level mode")
 )
 
 func init() {
@@ -39,7 +39,15 @@ func InitWithWriter(level logs.LoggerLevelMode, w io.Writer, fixedValues ...logs
 func NewChildLogger(fixedValues ...logs.FieldValue) Logger {
 	globalFixedValues := globalLogger.FixedFieldsValues()[:]
 	globalFixedValues = append(globalFixedValues, fixedValues...)
-	l := logs.SimpleLogger{FieldsValues: globalFixedValues[:], LevelSelected: levelSelected}
+	l := logs.SimpleLogger{FieldsValues: globalFixedValues, LevelSelected: levelSelected}
+	l.Init()
+	return &l
+}
+
+func NewChildLoggerFrom(parentLogger Logger, fixedValues ...logs.FieldValue) Logger {
+	parentFixedValues := parentLogger.FixedFieldsValues()[:]
+	parentFixedValues = append(parentFixedValues, fixedValues...)
+	l := logs.SimpleLogger{FieldsValues: parentFixedValues, LevelSelected: levelSelected}
 	l.Init()
 	return &l
 }
@@ -80,7 +88,6 @@ func newLoggerWithLogFile(level logs.LoggerLevelMode, filename string, fixedValu
 	return newLoggerWithWriter(level, f, fixedValues...), nil
 }
 
-
 // Fatal logs using the globalLogger
 func Fatal(message interface{}) {
 	globalLogger.Fatal(message)
@@ -100,6 +107,7 @@ func Error(message interface{}) {
 func Debug(message interface{}) {
 	globalLogger.Debug(message)
 }
+
 // Warn logs using the globalLogger
 func Warn(message interface{}) {
 	globalLogger.Warn(message)
@@ -129,4 +137,3 @@ func Debugf(message string, v ...interface{}) {
 func Warnf(message string, v ...interface{}) {
 	globalLogger.Warnf(message, v...)
 }
-
