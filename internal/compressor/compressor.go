@@ -7,27 +7,32 @@ import (
 	"path"
 )
 
-func ComprimirArquivo(nomeArquivoParaComprimir string) error {
-	nomeArquivoComprimido := nomeArquivoParaComprimir + ".zip"
-	arquivoZip, err := os.Create(nomeArquivoComprimido)
+const (
+	ZipExtension      = ".zip"
+	ZipExtensionRegex = "\\.zip"
+)
+
+func CompressFile(fileNametoCompress string) error {
+	compressedName := fileNametoCompress + ZipExtension
+	compressFile, err := os.Create(compressedName)
 	if err != nil {
 		return err
 	}
-	defer arquivoZip.Close()
-	arquivoZipWriter := zip.NewWriter(arquivoZip)
-	defer arquivoZipWriter.Close()
-	nomeBaseArquivoParaComprimir := path.Base(nomeArquivoParaComprimir)
-	arquivoParaZiparWriter, err := arquivoZipWriter.Create(nomeBaseArquivoParaComprimir)
+	defer compressFile.Close()
+	zipWriter := zip.NewWriter(compressFile)
+	defer zipWriter.Close()
+	baseCompressedName := path.Base(fileNametoCompress)
+	fileZipWriter, err := zipWriter.Create(baseCompressedName)
 	if err != nil {
-		os.Remove(nomeArquivoComprimido)
+		os.Remove(compressedName)
 		return err
 	}
-	arquivoParaZipar, err := os.Open(nomeArquivoParaComprimir)
+	fileToZip, err := os.Open(fileNametoCompress)
 	if err != nil {
-		os.Remove(nomeArquivoComprimido)
+		os.Remove(compressedName)
 		return err
 	}
-	defer arquivoParaZipar.Close()
-	_, err = io.Copy(arquivoParaZiparWriter, arquivoParaZipar)
+	defer fileToZip.Close()
+	_, err = io.Copy(fileZipWriter, fileToZip)
 	return err
 }

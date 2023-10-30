@@ -20,10 +20,8 @@ import (
 type TimeRotatingScheme string
 
 const (
-	PerDay            TimeRotatingScheme = "perDay"
-	PerHour           TimeRotatingScheme = "perHour"
-	zipExtension                         = ".zip"
-	zipExtensionRegex                    = "\\.zip"
+	PerDay  TimeRotatingScheme = "perDay"
+	PerHour TimeRotatingScheme = "perHour"
 )
 
 var (
@@ -180,7 +178,7 @@ func mustFileBeRemoved(lastFileTime time.Time, filenameToCheck string, trl *Time
 	filenameEscaped := regexp.QuoteMeta(trl.filename)
 	filenameExt := getFilenameExt(filenameEscaped, false)
 	filenameWithoutExt := getFilenameWithoutExt(filenameEscaped)
-	regexPattern := fmt.Sprintf("^%s-(%s)%s(%s)?$", filenameWithoutExt, trl.rotatingScheme.timeExtensionRegex(), filenameExt, zipExtensionRegex)
+	regexPattern := fmt.Sprintf("^%s-(%s)%s(%s)?$", filenameWithoutExt, trl.rotatingScheme.timeExtensionRegex(), filenameExt, compressor.ZipExtensionRegex)
 	regex, err := regexp.Compile(regexPattern)
 	if err != nil {
 		trl.Errorf("Error to generate the regex pattern to remove old files %v", err)
@@ -209,10 +207,10 @@ func getFilenameGlobWithoutExt(filename string) string {
 
 func getFilenameExt(filename string, includeCompressExtension bool) string {
 	filenameSize := len(filename)
-	if strings.HasSuffix(filename, zipExtension) {
-		ext := path.Ext(filename[:filenameSize-len(zipExtension)])
+	if strings.HasSuffix(filename, compressor.ZipExtension) {
+		ext := path.Ext(filename[:filenameSize-len(compressor.ZipExtension)])
 		if includeCompressExtension {
-			return ext + zipExtension
+			return ext + compressor.ZipExtension
 		}
 		return ext
 	}
@@ -261,7 +259,7 @@ func rotatingFile(trl *TimeRotatingLogger) {
 				trl.file = f
 				trl.mux.Unlock()
 				if trl.compressOldFiles {
-					err := compressor.ComprimirArquivo(oldLogFilename)
+					err := compressor.CompressFile(oldLogFilename)
 					if err != nil {
 						trl.Errorf("It was not possible compress the file %s - Error: %s", oldLogFilename, err)
 					} else {

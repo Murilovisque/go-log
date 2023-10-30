@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestComprimirArquivoDeveZip(t *testing.T) {
+func TestCompressFileToZip(t *testing.T) {
 	dir, err := ioutil.TempDir("", "teste-logs")
 	if err != nil {
 		t.Fatal(err)
@@ -21,7 +21,7 @@ func TestComprimirArquivoDeveZip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ComprimirArquivo(caminhoCompletoArqLog)
+	CompressFile(caminhoCompletoArqLog)
 
 	caminhoCompletoArqLogComprimido := caminhoCompletoArqLog + ".zip"
 	zipReader, err := zip.OpenReader(caminhoCompletoArqLogComprimido)

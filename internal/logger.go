@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"strings"
+	"sync"
 )
 
 type LoggerLevelMode string
@@ -18,7 +19,12 @@ const (
 )
 
 var (
-	LogsMode = []LoggerLevelMode{LogFatalMode, LogErrorMode, LogWarnMode, LogInfoMode, LogDebugMode}
+	LogsMode    = []LoggerLevelMode{LogFatalMode, LogErrorMode, LogWarnMode, LogInfoMode, LogDebugMode}
+	builderPool = sync.Pool{
+		New: func() interface{} {
+			return new(strings.Builder)
+		},
+	}
 )
 
 type Logger interface {
@@ -52,7 +58,7 @@ func (l *SimpleLogger) Init() {
 	if l.FieldsValues == nil {
 		l.FieldsValues = []FieldValue{}
 	}
-	builder := strings.Builder{}
+	builder := builderPool.Get().(*strings.Builder)
 	for _, fv := range l.FieldsValues {
 		builder.WriteString(" [")
 		builder.WriteString(fv.Key)
@@ -62,6 +68,8 @@ func (l *SimpleLogger) Init() {
 	}
 	builder.WriteString(" * ")
 	l.fixedLogMessage = builder.String()
+	builder.Reset()
+	builderPool.Put(builder)
 
 	l.logErrorEnabled = anyLevelMatch(l.LevelSelected, []LoggerLevelMode{LogErrorMode, LogWarnMode, LogInfoMode, LogDebugMode})
 	l.logWarnEnabled = anyLevelMatch(l.LevelSelected, []LoggerLevelMode{LogWarnMode, LogInfoMode, LogDebugMode})
